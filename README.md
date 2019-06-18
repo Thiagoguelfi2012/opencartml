@@ -1,4 +1,4 @@
-Opencartml
+Opencartml - Fork atualizado para a versão 2.3.0.x do OpenCart
 
 
 Resumo

@@ -1,8 +1,12 @@
 <?php
+
 /**
- * Classe Opme reescrita da Classe Meli.php
- * Alterações foram necessárias para funcionar no Opencart
+ * Controlle principal OpencartML 
+ * Versão 1.1
+ * Situação: Production
+ * Autor / Flavio Lima  bhlims2 gmail com
  * Alterado por Flavio Lima  bhlima/gmail/com
+ * Alterado por Thiago Guelfi  thiagovalentoni@gmail.com
  */
 class Opme {
 
@@ -11,7 +15,6 @@ class Opme {
      *  Reescrendo meli porque a original não instancia nem a pau.
      */
     const VERSION = "1.1.0";
-    
 
     /**
      * @var $API_ROOT_URL is a main URL to access the Meli API's.
@@ -58,29 +61,22 @@ class Opme {
         $this->redirect_uri = $redirect_uri;
     }
 
-
     /**
      * 
      * @param type $redirect_uri
      * @param type $auth_url
      * @return string
      */
-    
-    
-    public function PutToken($access_token){
+    public function PutToken($access_token) {
         $this->access_token = $access_token;
-                return;
+        return;
     }
-    
-     public function PutRefresh($refresh_token){
+
+    public function PutRefresh($refresh_token) {
         $this->refresh_token = $refresh_token;
-                return;
-    }   
-    
-    
-    
-    
-    
+        return;
+    }
+
     public function getAuthUrl($redirect_uri) {
         $this->redirect_uri = $redirect_uri;
         $params = array("client_id" => $this->client_id, "response_type" => "code", "redirect_uri" => $redirect_uri);
@@ -88,7 +84,7 @@ class Opme {
         return $auth_uri;
     }
 
-     /**
+    /**
      * 
      * @param type $path
      * @param type $params
@@ -100,7 +96,6 @@ class Opme {
         return $exec;
     }
 
-       
     /**
      * 
      * @param type $code
@@ -108,7 +103,6 @@ class Opme {
      * @return type
      */
     public function authorize($code, $redirect_uri) {
-
         $body = array(
             "grant_type" => "authorization_code",
             "client_id" => $this->client_id,
@@ -117,10 +111,10 @@ class Opme {
             "redirect_uri" => $redirect_uri
         );
 
-        
-       // print_r($body);
-       // exit();
-        
+
+//        print_r($body);
+//        exit();
+
         $opts = array(
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $body
@@ -140,69 +134,57 @@ class Opme {
         }
     }
 
-    
     /**
      * 
      * @param type $path
      * @param type $params
      * @return type
      */
-       public function options($path, $params = null) {
+    public function options($path, $params = null) {
         $opts = array(
             CURLOPT_CUSTOMREQUEST => "OPTIONS"
         );
-        
+
         $exec = $this->execute($path, $opts, $params);
         return $exec;
     }
-    
-    
-        /**
+
+    /**
      * Execute a POST Request to create a new AccessToken from a existent refresh_token
      * 
      * @return string|mixed
      */
     public function refreshAccessToken() {
-        if($this->refresh_token) {
-             $body = array(
-                "grant_type" => "refresh_token", 
-                "client_id" => $this->client_id, 
-                "client_secret" => $this->client_secret, 
+        if ($this->refresh_token) {
+            $body = array(
+                "grant_type" => "refresh_token",
+                "client_id" => $this->client_id,
+                "client_secret" => $this->client_secret,
                 "refresh_token" => $this->refresh_token
             );
             $opts = array(
-                CURLOPT_POST => true, 
+                CURLOPT_POST => true,
                 CURLOPT_POSTFIELDS => $body
             );
-        
+
             $request = $this->execute(self::$OAUTH_URL, $opts);
-            if($request["httpCode"] == 200) {             
+            if ($request["httpCode"] == 200) {
                 $this->access_token = $request["body"]->access_token;
-                if($request["body"]->refresh_token)
+                if ($request["body"]->refresh_token)
                     $this->refresh_token = $request["body"]->refresh_token;
                 return $request;
             } else {
                 return $request;
-            }   
+            }
         } else {
             $result = array(
                 'error' => 'Offline-Access is not allowed.',
-                'httpCode'  => null
+                'httpCode' => null
             );
             return $result;
-        }        
+        }
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
     /**
      * 
      * @param type $path
@@ -213,11 +195,11 @@ class Opme {
      */
     public function execute($path, $opts = array(), $params = array(), $assoc = false) {
         $uri = $this->make_path($path, $params);
-        
+
         //print_r($uri);
         //exit();
-        
-        
+
+
         $ch = curl_init($uri);
         curl_setopt_array($ch, self::$CURL_OPTS);
 
@@ -232,11 +214,7 @@ class Opme {
         return $return;
     }
 
-    
-    
-    
-    
-        /**
+    /**
      * Check and construct an real URL to make request
      * 
      * @param string $path
@@ -246,27 +224,24 @@ class Opme {
     public function make_path($path, $params = array()) {
         if (!preg_match("/^http/", $path)) {
             if (!preg_match("/^\//", $path)) {
-                $path = '/'.$path;
+                $path = '/' . $path;
             }
-            $uri = self::$API_ROOT_URL.$path;
+            $uri = self::$API_ROOT_URL . $path;
         } else {
             $uri = $path;
         }
 
-        if(!empty($params)) {
+        if (!empty($params)) {
             $paramsJoined = array();
 
-            foreach($params as $param => $value) {
-               $paramsJoined[] = "$param=$value";
+            foreach ($params as $param => $value) {
+                $paramsJoined[] = "$param=$value";
             }
-            $params = '?'.implode('&', $paramsJoined);
-            $uri = $uri.$params;
+            $params = '?' . implode('&', $paramsJoined);
+            $uri = $uri . $params;
         }
 
         return $uri;
     }
-    
-    
-    
-    
+
 }

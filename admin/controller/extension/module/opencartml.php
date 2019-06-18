@@ -2,9 +2,11 @@
 
 /**
  * Controlle principal OpencartML 
- * Versão 1.0 
+ * Versão 1.1
  * Situação: Production
  * Autor / Flavio Lima  bhlims2 gmail com
+ * Alterado por Flavio Lima  bhlima/gmail/com
+ * Alterado por Thiago Guelfi  thiagovalentoni@gmail.com
  */
 require_once '../admin/controller/extension/module/opme.php';
 
@@ -27,7 +29,10 @@ class ControllerExtensionModuleOpencartml extends Controller {
         /* Carrega idioma */
         $data = $this->load->language('extension/module/opencartml');
         $this->document->setTitle($this->language->get('heading_title'));
-        $user_token = $this->session->data['user_token'];
+//        print_r($this->session);
+//        print_r($_SESSION);
+//        die;
+        $token = $this->session->data['token'];
 
         if (($this->request->server['REQUEST_METHOD'] == 'POST') && $this->validate()) {
             $this->load->model('setting/setting');
@@ -53,16 +58,19 @@ class ControllerExtensionModuleOpencartml extends Controller {
 
 
             $this->session->data['success'] = $this->language->get('text_success');
-            $this->response->redirect($this->url->link('marketplace/extension', 'user_token=' . $user_token, true));
+            $this->response->redirect($this->url->link('marketplace/extension', 'token=' . $token, true));
         }
 
         $par1 = $this->config->get('module_opencartml_client_id');
         $par2 = $this->config->get('module_opencartml_client_secret');
-        $redirectURI = 'https://nicbit.com.br/index.php?route=extension/module/opencartml/opcall';
+        $redirectURI = str_replace("/admin", "", HTTPS_SERVER) . 'index.php?route=extension/module/opencartml/opcall';
         $ml_code = $this->config->get('module_opencartml_auth');
 
-        
-        
+        if (empty($par1) || empty($par2)) {
+            $this->response->redirect($this->url->link('extension/module/opencartml/configure', 'token=' . $token, true));
+        }
+
+
         $opme = new Opme($par1, $par2, $redirectURI);
 
         //Link para autorização
@@ -108,18 +116,19 @@ class ControllerExtensionModuleOpencartml extends Controller {
             $expires_in = '';
             $user_id = '';
         }
-
-
         if (isset($ml_code) || isset($access_token)) {
-            if (isset($ml_code) && !isset($access_token)) {
+            if (empty($ml_code)) {
+                $authUrl = "https://auth.mercadolibre.com.ar/authorization?response_type=code&client_id={$par1}&redirect_uri={$redirectURI}";
+                return $this->response->redirect($authUrl);
+            }
+            if (isset($ml_code) && empty($access_token)) {
                 try {
 
                     $user = $opme->authorize($ml_code, $redirectURI);
-
                     // Atualiza as variaveis de ambiente
                     $access_token = $user['body']->access_token;
-                    $refresh_token = time() + $user['body']->expires_in;
-                    $expires_in = $user['body']->refresh_token;
+                    $refresh_token = $user['body']->refresh_token;
+                    $expires_in = time() + $user['body']->expires_in;
                     $user_id = $user['body']->user_id;
                     $scope = $user['body']->scope;
                     $token_type = $user['body']->token_type;
@@ -135,6 +144,9 @@ class ControllerExtensionModuleOpencartml extends Controller {
                     try {
 
                         $refresh = $opme->refreshAccessToken();
+                        if (!empty($refresh['error'])) {
+                            throw new Exception(json_encode($refresh));
+                        }
 
                         // Atualiza as variaveis de ambiente
                         $access_token = $refresh['body']->access_token;
@@ -150,6 +162,7 @@ class ControllerExtensionModuleOpencartml extends Controller {
                         $opme->PutRefresh($refresh_token);
                     } catch (Exception $e) {
                         echo "Exception: ", $e->getMessage(), "\n";
+                        return false;
                     }
                 }
             }
@@ -198,17 +211,17 @@ class ControllerExtensionModuleOpencartml extends Controller {
         $data['breadcrumbs'] = array();
 
         $data['breadcrumbs'][] = array(
-            'href' => $this->url->link('common/home', 'user_token=' . $user_token, true),
+            'href' => $this->url->link('common/home', 'token=' . $token, true),
             'name' => $this->language->get('text_home')
         );
 
         $data['breadcrumbs'][] = array(
-            'href' => $this->url->link('marketplace/extension', 'user_token=' . $user_token, true),
+            'href' => $this->url->link('marketplace/extension', 'token=' . $token, true),
             'name' => $this->language->get('text_module')
         );
 
         $data['breadcrumbs'][] = array(
-            'href' => $this->url->link('extension/module/opencartml', 'user_token=' . $user_token, true),
+            'href' => $this->url->link('extension/module/opencartml', 'token=' . $token, true),
             'name' => $this->language->get('heading_title')
         );
 
@@ -307,7 +320,7 @@ class ControllerExtensionModuleOpencartml extends Controller {
 
 
 
-        
+
 
         /* Ad Type */
         if (isset($this->request->post['module_opencartml_adtype'])) {
@@ -322,22 +335,75 @@ class ControllerExtensionModuleOpencartml extends Controller {
 
         $url = '';
         /* Links */
-        $data['action'] = $this->url->link('extension/module/opencartml', 'user_token=' . $user_token, true);
-        $data['cancel'] = $this->url->link('extension/extension', 'user_token=' . $user_token, true);
+        $data['action'] = $this->url->link('extension/module/opencartml', 'token=' . $token, true);
+        $data['configure'] = $this->url->link('extension/module/opencartml/configure', 'token=' . $token, true);
+        $data['cancel'] = $this->url->link('extension/extension', 'token=' . $token, true);
         $data['header'] = $this->load->controller('common/header');
         $data['column_left'] = $this->load->controller('common/column_left');
         $data['footer'] = $this->load->controller('common/footer');
-        $data['link_custom_field'] = $this->url->link('customer/custom_field', 'user_token=' . $user_token, true);
+        $data['link_custom_field'] = $this->url->link('customer/custom_field', 'token=' . $token, true);
         $data['custom_fields'] = $this->model_customer_custom_field->getCustomFields();
         $data['statuses'] = $this->model_localisation_order_status->getOrderStatuses();
-        $data['add'] = $this->url->link('module/extension/opencartml/add', 'user_token=' . $this->session->data['user_token'] . $url, true);
-        $data['delete'] = $this->url->link('module/extension/opencartml/del', 'user_token=' . $this->session->data['user_token'] . $url, true);
-        $data['redirect_url'] = $this->url->link('module/extension/opencartml', 'user_token=' . $this->session->data['user_token'] . $url, true);
+        $data['add'] = $this->url->link('module/extension/opencartml/add', 'token=' . $this->session->data['token'] . $url, true);
+        $data['delete'] = $this->url->link('module/extension/opencartml/del', 'token=' . $this->session->data['token'] . $url, true);
+        $data['redirect_url'] = $this->url->link('module/extension/opencartml', 'token=' . $this->session->data['token'] . $url, true);
         $data['auth_code'] = $this->config->get('module_opencartml_auth');
-        
-        
+        $data['error'] = $this->error;
+
+
 
         $this->response->setOutput($this->load->view('extension/module/opencartml', $data));
+    }
+
+    public function configure() {
+        $title = 'Configurar APP do Mercado Livre';
+        $this->document->setTitle($title);
+        $token = $this->session->data['token'];
+//    tela de cadastrar dados do ML
+
+        $data = [
+            "form_action" => $this->url->link('extension/module/opencartml/configure', 'token=' . $token, true),
+            "heading_title" => $title,
+            "module_opencartml_client_id" => $this->config->get('module_opencartml_client_id'),
+            "module_opencartml_client_secret" => $this->config->get('module_opencartml_client_secret'),
+        ];
+        $data['breadcrumbs'] = array();
+
+        $data['breadcrumbs'][] = array(
+            'href' => $this->url->link('common/home', 'token=' . $token, true),
+            'name' => $this->language->get('text_home')
+        );
+
+        $data['breadcrumbs'][] = array(
+            'href' => $this->url->link('marketplace/extension', 'token=' . $token, true),
+            'name' => $this->language->get('text_module')
+        );
+
+        $data['breadcrumbs'][] = array(
+            'href' => $this->url->link('extension/module/opencartml', 'token=' . $token, true),
+            'name' => $this->language->get('heading_title')
+        );
+        $data['breadcrumbs'][] = array(
+            'href' => $this->url->link('extension/module/opencartml/configure', 'token=' . $token, true),
+            'name' => $data['heading_title']
+        );
+        $data['header'] = $this->load->controller('common/header');
+        $data['column_left'] = $this->load->controller('common/column_left');
+        $data['footer'] = $this->load->controller('common/footer');
+
+        if (!empty($_POST)) {
+            $this->load->model('setting/setting');
+
+            $this->model_setting_setting->editSetting('module_opencartml_client_id', ["module_opencartml_client_id" => $_POST['module_opencartml_client_id']]);
+            $this->model_setting_setting->editSetting('module_opencartml_client_secret', ["module_opencartml_client_secret" => $_POST['module_opencartml_client_secret']]);
+
+
+            $this->session->data['success'] = "APP Mercado Livre configurado com sucesso!";
+            $this->response->redirect($this->url->link('extension/module/opencartml', 'token=' . $token, true));
+            $data = array_merge($data, $_POST);
+        }
+
+        return $this->response->setOutput($this->load->view('extension/module/opencartml_install', $data));
     }
 
     public function validate() {
