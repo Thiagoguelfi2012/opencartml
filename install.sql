@@ -10,6 +10,3 @@ PRIMARY KEY (`id`)
 );
 
 
-INSERT INTO `oc_setting` (`setting_id`, `store_id`, `code`, `key`, `value`, `serialized`) VALUES (NULL, '0', 'module_opencartml_client_id', 'module_opencartml_client_id', 'XXXXXXXXXXXXXXXXX', '0'), (NULL, '0', 'module_opencartml_client_secret', 'module_opencartml_client_secret', 'XXXXXXXXXXXXXXXXXXXXXXXX', '0');
-
-INSERT INTO `oc_setting` (`setting_id`, `store_id`, `code`, `key`, `value`, `serialized`) VALUES (NULL, '0', 'module_opencartml_auth', 'module_opencartml_auth', 'XX-XXXXXXXXXXXXXXXXXXXXXXXXXX-XXXXXXX', '0');
